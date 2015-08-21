@@ -4,7 +4,7 @@ from pkg_resources import working_set, Requirement
 
 from django.conf import settings
 from django.core.mail import send_mail
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from dj.choices import Choices
@@ -25,6 +25,12 @@ except (ImportError, AttributeError):
 
 JIRA_MISCONFIGURATION_MSG = """To enable JIRA support you need to install jira
 package and provide JIRA_URL"""
+import rules
+
+
+@rules.predicate
+def is_owner(user, object_):
+    return not object_ or object_.owner == user
 
 
 class TimeTrackable(models.Model):
@@ -85,6 +91,26 @@ class Owned(models.Model):
                 settings.FROM_EMAIL,
                 [self.owner.email],
             )
+
+
+class UserBasedValidator():
+    """Generic validator which logic depends on the current user"""
+
+    def set_context(self, field):
+        self.user = field.parent.context['request'].user
+
+
+class PermissionValidator(UserBasedValidator):
+    """A validator that only allows objects that user has permission for"""
+
+    def __init__(self, permission, *args, **kwargs):
+        self.permission = permission
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, object_):
+        if not self.user.has_perm(self.permission, object_):
+            raise ValidationError("You don't have permission to use this")
+        return object_
 
 
 def to_reverse(ip):
@@ -153,6 +179,8 @@ def format_recursive(template, arguments):
 
 
 def log_save_to_jira(sender, instance, created, **kwargs):
+    if not settings.ENABLE_JIRA_LOGGING:
+        return
     if not JIRA:
         raise ImproperlyConfigured(JIRA_MISCONFIGURATION_MSG)
     changes_list = ([
@@ -179,6 +207,8 @@ def log_save_to_jira(sender, instance, created, **kwargs):
 
 
 def log_delete_to_jira(sender, instance, **kwargs):
+    if not settings.ENABLE_JIRA_LOGGING:
+        return
     if not JIRA:
         raise ImproperlyConfigured(JIRA_MISCONFIGURATION_MSG)
     template_args = {

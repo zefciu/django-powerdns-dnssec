@@ -3,6 +3,7 @@ import unittest
 
 import responses
 
+from django.conf import settings
 from powerdns.models.powerdns import Domain, Record
 
 
@@ -37,6 +38,12 @@ class JiraCreateMock(responses.RequestsMock):
 
 
 class TestJira(unittest.TestCase):
+
+    def setUp(self):
+        settings.ENABLE_JIRA_LOGGING = True
+
+    def tearDown(self):
+        settings.ENABLE_JIRA_LOGGING = False
 
     def assert_issue_created(
         self,
