@@ -71,7 +71,7 @@ class OwnedAdmin(admin.ModelAdmin):
 class RecordAdmin(ForeignKeyAutocompleteAdmin, OwnedAdmin):
     form = RecordAdminForm
     list_display = (
-        'name', 'type', 'content', 'domain', 'ttl', 'prio', 'change_date',
+        'name', 'type', 'content', 'domain', 'ttl', 'prio', 'change_date'
     )
     list_filter = ('type', 'ttl', 'auth', 'domain', 'created', 'modified')
     list_per_page = 250
@@ -88,6 +88,7 @@ class RecordAdmin(ForeignKeyAutocompleteAdmin, OwnedAdmin):
                 'domain',
                 ('type', 'name', 'content',),
                 'auth',
+                'auto_ptr',
             ),
         }),
         ('Advanced options', {
@@ -104,6 +105,16 @@ class RecordAdmin(ForeignKeyAutocompleteAdmin, OwnedAdmin):
         },
     }
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        domain_pk = request.GET.get('domain')
+        if domain_pk is not None:
+            domain = Domain.objects.get(pk=domain_pk)
+            for field in Domain.record_fields:
+                form.base_fields[field[len('record_'):]].initial = \
+                    getattr(domain, field)
+        return form
+
 
 class DomainMetadataInline(admin.TabularInline):
     model = DomainMetadata
@@ -112,7 +123,7 @@ class DomainMetadataInline(admin.TabularInline):
 
 class DomainAdmin(OwnedAdmin):
     inlines = [DomainMetadataInline]
-    list_display = ('name', 'type', 'last_check', 'account',)
+    list_display = ('name', 'type', 'last_check', 'account', 'add_record_link')
     list_filter = _domain_filters + ('created', 'modified')
     list_per_page = 250
     save_on_top = True
