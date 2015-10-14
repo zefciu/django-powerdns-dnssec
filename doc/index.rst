@@ -21,6 +21,7 @@ Contents:
     installation/index
     api_tutorial/index
     templating/index
+    jira_integration/index
 
 Indices and tables
 ==================

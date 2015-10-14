@@ -25,6 +25,86 @@ if TESTING:
         }
     }
     EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+    ENABLE_JIRA_LOGGING = True
+    JIRA_URL = 'http://jira.ourcompany.com'
+    JIRA_USERNAME = 'username'
+    JIRA_PASSWORD = 'password'
+
+    JIRA_TEMPLATES = {
+        'Domain': {
+            'created': {
+                'project': {'key': 'ZUISG'},
+                'issuetype': {'name': 'Change-OP'},
+                'summary': 'Domain {name} created',
+                'description': '{changes}',
+            },
+            'modified': {
+                'project': {'key': 'ZUISG'},
+                'issuetype': {'name': 'Change-OP'},
+                'summary': 'Domain {name} modified',
+                'description': '{changes}',
+            },
+            'deleted': {
+                'project': {'key': 'ZUISG'},
+                'issuetype': {'name': 'Change-OP'},
+                'summary': 'Domain {name} deleted',
+                'description': 'Domain {name} was deleted',
+                "customfield_10513": [
+                    {
+                        "id": '17017',
+                    }, {
+                        "id": '21559',
+                    }
+                ],
+                "customfield_13100": "626",
+            },
+        },
+        'Record': {
+            'created': {
+                'project': {'key': 'ZUISG'},
+                'issuetype': {'name': 'Change-OP'},
+                'summary': 'Record {name} created',
+                'description': '{changes}',
+                "customfield_10513": [
+                    {
+                        "id": '17017',
+                    }, {
+                        "id": '21559',
+                    }
+                ],
+                "customfield_13100": "626",
+            },
+            'modified': {
+                'project': {'key': 'ZUISG'},
+                'issuetype': {'name': 'Change-OP'},
+                'summary': 'Record {name} modified',
+                'description': '{changes}',
+                "customfield_10513": [
+                    {
+                        "id": '17017',
+                    }, {
+                        "id": '21559',
+                    }
+                ],
+                "customfield_13100": "626",
+            },
+            'deleted': {
+                'project': {'key': 'ZUISG'},
+                'issuetype': {'name': 'Change-OP'},
+                'summary': 'Record {name} deleted',
+                'description': 'Record {name} was deleted',
+                "customfield_10513": [
+                    {
+                        "id": '17017',
+                    }, {
+                        "id": '21559',
+                    }
+                ],
+                "customfield_13100": "626",
+            },
+        }
+    }
 else:
     DATABASES = {
         'default': {
@@ -36,6 +116,7 @@ else:
             'PORT': '3306',
         }
     }
+    ENABLE_JIRA_LOGGING = False
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -198,5 +279,6 @@ OWNER_NOTIFICATIONS = {
 }
 
 SITE_TITLE = 'Django powerdns'
+
 
 from settings_local import *  # noqa

@@ -60,5 +60,10 @@ setup(
         'django-filter>=0.10.0',
         'docutils>=0.12',
     ],
+    extras_require = {
+        'jira': [
+            'jira>=0.50',
+        ]
+    },
     zip_safe = False,  # if only because of the readme file
 )

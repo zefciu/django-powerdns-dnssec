@@ -4,12 +4,27 @@ from pkg_resources import working_set, Requirement
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from dj.choices import Choices
 
 
 VERSION = working_set.find(Requirement.parse('django-powerdns-dnssec')).version
+
+try:
+    from jira import JIRA
+    JIRA_SERVER = JIRA(
+        settings.JIRA_URL,
+        basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD),
+        get_server_info=False,
+    )
+except (ImportError, AttributeError):
+    JIRA_SERVER = None
+
+
+JIRA_MISCONFIGURATION_MSG = """To enable JIRA support you need to install jira
+package and provide JIRA_URL"""
 
 
 class TimeTrackable(models.Model):
@@ -20,6 +35,12 @@ class TimeTrackable(models.Model):
     modified = models.DateTimeField(
         verbose_name=_('last modified'), auto_now=True, editable=False,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_values = {
+            k: v for k, v in self.__dict__.items() if not k.startswith('_')
+        }
 
     class Meta:
         abstract = True
@@ -88,3 +109,80 @@ DOMAIN_TYPE = (
     ('NATIVE', 'NATIVE'),
     ('SLAVE', 'SLAVE'),
 )
+
+
+def format_recursive(template, arguments):
+    """
+    Performs str.format on the template in a recursive fashion iterating over
+    lists and dictionary values
+
+    >>> template = {
+    ... 'a': 'Value {a}',
+    ... 'b': {
+    ...     'a': 'Value {a}',
+    ...     'b': 'Value {b}',
+    ... },
+    ... 'c': ['Value {a}', 'Value {b}'],
+    ... 'd': 10,
+    ... }
+    >>> arguments = {
+    ... 'a': 'A',
+    ... 'b': 'B',
+    ... }
+    >>> result = format_recursive(template, arguments)
+    >>> result['a']
+    'Value A'
+    >>> result['b']['b']
+    'Value B'
+    >>> result['c'][0]
+    'Value A'
+    >>> result['d']
+    10
+    """
+    if isinstance(template, str):
+        return template.format(**arguments)
+    elif isinstance(template, dict):
+        return {
+            k: format_recursive(v, arguments)
+            for (k, v) in template.items()
+        }
+    elif isinstance(template, list):
+        return [format_recursive(v, arguments) for v in template]
+    else:
+        return template
+
+
+def log_save_to_jira(sender, instance, created, **kwargs):
+    if not JIRA:
+        raise ImproperlyConfigured(JIRA_MISCONFIGURATION_MSG)
+    changes_list = ([
+        '||Field||Value||' if created else '||Field||Previous||Current||'
+    ])
+    if created:
+        for (k, v) in instance.__dict__.items():
+            if k.startswith('_'):
+                continue
+            changes_list.append('|{}|{}|'.format(k, v))
+    else:
+        for (k, v) in instance._initial_values.items():
+            if v != getattr(instance, k):
+                changes_list.append(
+                    '|{}|{}|{}|'.format(k, v, getattr(instance, k))
+                )
+    template_args = {
+        'changes': '\n'.join(changes_list),
+        'name': instance.name,
+    }
+    template_name = 'created' if created else 'modified'
+    template = settings.JIRA_TEMPLATES[sender._meta.object_name][template_name]
+    JIRA_SERVER.create_issue(fields=format_recursive(template, template_args))
+
+
+def log_delete_to_jira(sender, instance, **kwargs):
+    if not JIRA:
+        raise ImproperlyConfigured(JIRA_MISCONFIGURATION_MSG)
+    template_args = {
+        'name': instance.name,
+    }
+    template = settings.JIRA_TEMPLATES[sender._meta.object_name]['deleted']
+    JIRA_SERVER.create_issue(fields=format_recursive(template, template_args))

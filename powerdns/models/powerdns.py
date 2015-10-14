@@ -15,7 +15,14 @@ from IPy import IP
 
 from dj.choices.fields import ChoiceField
 
-from powerdns.utils import Owned, TimeTrackable, to_reverse, AutoPtrOptions
+from powerdns.utils import (
+    log_delete_to_jira,
+    log_save_to_jira,
+    Owned,
+    TimeTrackable,
+    to_reverse,
+    AutoPtrOptions,
+)
 
 
 BASIC_RECORD_TYPES = (
@@ -219,6 +226,15 @@ class Domain(TimeTrackable, Owned):
 
     def extra_buttons(self):
         yield (self.add_record_url(), 'Add record')
+
+
+if settings.ENABLE_JIRA_LOGGING:
+    post_save.connect(
+        log_save_to_jira, sender=Domain, dispatch_uid='domain_save_jira'
+    )
+    post_delete.connect(
+        log_delete_to_jira, sender=Domain, dispatch_uid='domain_delete_jira'
+    )
 
 
 class Record(TimeTrackable, Owned):
@@ -547,3 +563,12 @@ class CryptoKey(TimeTrackable):
 
     def __str__(self):
         return self.domain
+
+
+if settings.ENABLE_JIRA_LOGGING:
+    post_save.connect(
+        log_save_to_jira, sender=Record, dispatch_uid='record_save_jira'
+    )
+    post_delete.connect(
+        log_delete_to_jira, sender=Record, dispatch_uid='record_delete_jira'
+    )
