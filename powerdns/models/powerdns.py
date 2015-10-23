@@ -11,6 +11,7 @@ from django.db import models, transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
+from django.utils.deconstruct import deconstructible
 from django.core.urlresolvers import reverse
 from IPy import IP
 import rules
@@ -137,6 +138,7 @@ def validate_ipv6_address(value):
         )
 
 
+@deconstructible
 class SubDomainValidator(UserBasedValidator):
 
     def __call__(self, domain_name):
@@ -213,6 +215,9 @@ class Domain(TimeTrackable, Owned):
     record_auto_ptr = ChoiceField(
         choices=AutoPtrOptions,
         default=AutoPtrOptions.ALWAYS,
+        help_text=_(
+            'Should A records have auto PTR by default'
+        )
     )
 
     class Meta:
@@ -327,7 +332,7 @@ class Record(TimeTrackable, Owned):
     disabled = models.BooleanField(
         _("Disabled"),
         help_text=_(
-            "This field should not be used for actual DNS queries."
+            "This record should not be used for actual DNS queries."
             " Note - this field works for pdns >= 3.4.0"
         ),
         default=False,
