@@ -7,6 +7,7 @@ from rest_framework.authtoken.views import obtain_auth_token
 
 from powerdns.utils import VERSION
 from powerdns.views import (
+    accept_domain_request,
     CryptoKeyViewSet,
     DomainMetadataViewSet,
     DomainViewSet,
@@ -43,4 +44,9 @@ urlpatterns = patterns(
     url(r'^api/', include(router.urls)),
     url(r'^api-token-auth/', obtain_auth_token),
     url(r'^api-docs/', include('rest_framework_swagger.urls')),
+    url(
+        r'^accept-domain/(?P<pk>[0-9]+)$',
+        accept_domain_request,
+        name='accept_domain'
+    ),
 )

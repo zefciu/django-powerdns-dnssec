@@ -15,6 +15,7 @@ from django.utils.deconstruct import deconstructible
 from django.core.urlresolvers import reverse
 from IPy import IP
 import rules
+from threadlocals.threadlocals import get_current_user
 
 from powerdns.utils import (
     AutoPtrOptions,
@@ -244,20 +245,42 @@ class Domain(TimeTrackable, Owned):
         except Record.DoesNotExist:
             return
 
-    def add_record_url(self):
+    def add_record_url(self, authorised):
         """Return URL for 'Add record' action"""
+        model = 'record' if authorised else 'recordrequest'
         return (
-            reverse('admin:powerdns_record_add') +
+            reverse('admin:powerdns_{}_add'.format(model)) +
             '?domain={}'.format(self.pk)
         )
 
     def add_record_link(self):
-        return '<a href="{}">Add record</a>'.format(self.add_record_url())
+        authorised = get_current_user().has_perm(
+            'powerdns.change_domain', self
+        )
+        return '<a href="{}">{}</a>'.format(
+            self.add_record_url(authorised),
+            ('Add record' if authorised else 'Request record')
+        )
 
     add_record_link.allow_tags = True
 
+    def request_change(self):
+        if get_current_user().has_perm(
+            'powerdns.change_domain', self
+        ):
+            return ''
+        return '<a href="{}">Request change</a>'.format(
+            reverse(
+                'admin:powerdns_domainrequest_add'
+            ) + '?domain={}'.format(self.pk)
+        )
+    request_change.allow_tags = True
+
     def extra_buttons(self):
-        yield (self.add_record_url(), 'Add record')
+        authorised = get_current_user().has_perm(
+            'powerdns.change_domain', self
+        )
+        yield (self.add_record_url(authorised), 'Add record')
 
 
 post_save.connect(

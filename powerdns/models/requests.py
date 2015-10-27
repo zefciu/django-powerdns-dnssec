@@ -1,6 +1,7 @@
 """Model for change requests"""
 
 from django.db import models
+from django.core.urlresolvers import reverse
 from powerdns.models import (
     validate_domain_name,
     Owned,
@@ -11,6 +12,7 @@ from powerdns.utils import AutoPtrOptions
 from dj.choices import Choices
 from dj.choices.fields import ChoiceField
 from django.utils.translation import ugettext_lazy as _
+import rules
 
 
 class RequestStates(Choices):
@@ -37,6 +39,7 @@ class Request(Owned):
             setattr(object_, field_name, getattr(self, field_name))
         object_.save()
         self.save()
+        return object_
 
 
 class DomainRequest(Request):
@@ -57,6 +60,7 @@ class DomainRequest(Request):
         Domain,
         related_name='requests',
         null=True,
+        blank=True,
         help_text=_(
             'The domain for which a change is requested'
         ),
@@ -65,6 +69,7 @@ class DomainRequest(Request):
         Domain,
         related_name='child_requests',
         null=True,
+        blank=True,
         help_text=_(
             'The parent domain for which a new subdomain is to be created'
         ),
@@ -72,7 +77,6 @@ class DomainRequest(Request):
     )
     name = models.CharField(
         _("name"),
-        unique=True,
         max_length=255,
         validators=[validate_domain_name]
     )
@@ -125,6 +129,13 @@ class DomainRequest(Request):
             return self.domain
         else:
             return Domain()
+
+    def extra_buttons(self):
+        yield (reverse('accept_domain', kwargs={'pk': self.pk}), 'Accept')
+
+
+# rules.add_perm('powerdns', rules.is_authenticated)
+rules.add_perm('powerdns.add_domainrequest', rules.is_authenticated)
 
 
 class RecordRequest(Request):
@@ -216,3 +227,6 @@ class RecordRequest(Request):
             return self.record
         else:
             return Record(domain=self.domain)
+
+
+rules.add_perm('powerdns.add_recordrequest', rules.is_authenticated)
