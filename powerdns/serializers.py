@@ -13,6 +13,7 @@ from powerdns.models import (
 from rest_framework.serializers import(
     HyperlinkedModelSerializer,
     HyperlinkedRelatedField,
+    ReadOnlyField,
     SlugRelatedField,
 )
 from powerdns.utils import DomainForRecordValidator
@@ -33,6 +34,8 @@ class DomainSerializer(OwnerSerializer):
     class Meta:
         model = Domain
         read_only_fields = ('notified_serial',)
+
+    id = ReadOnlyField()
 
 
 class RecordSerializer(OwnerSerializer):
