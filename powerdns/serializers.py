@@ -49,6 +49,7 @@ class RecordSerializer(OwnerSerializer):
         view_name='domain-detail',
         validators=[DomainForRecordValidator()],
     )
+    id = ReadOnlyField()
 
 
 class CryptoKeySerializer(HyperlinkedModelSerializer):
