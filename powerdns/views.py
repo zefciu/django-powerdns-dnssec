@@ -16,7 +16,7 @@ from powerdns.models import (
     RecordRequest,
     SuperMaster,
 )
-from rest_framework.filters import DjangoFilterBackend
+from rest_framework.filters import DjangoFilterBackend, SearchFilter
 from rest_framework.viewsets import ModelViewSet
 
 from powerdns.serializers import (
@@ -58,7 +58,9 @@ class RecordViewSet(OwnerViewSet):
 
     queryset = Record.objects.all()
     serializer_class = RecordSerializer
+    filter_backends = (DjangoFilterBackend, SearchFilter,)
     filter_fields = ('name', 'type', 'content', 'domain')
+    search_fields = ('name', 'type', 'content')
 
 
 class CryptoKeyViewSet(FiltersMixin, ModelViewSet):
