@@ -3,6 +3,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.urlresolvers import reverse
+from django.dispatch import Signal
 from dj.choices import Choices
 from dj.choices.fields import ChoiceField
 from django.contrib.contenttypes.fields import ContentType, GenericForeignKey
@@ -17,6 +18,9 @@ from powerdns.models import (
     Record
 )
 from powerdns.utils import AutoPtrOptions, RecordLike
+
+
+request_copied = Signal(providing_args=['request', 'target'])
 
 
 class RequestStates(Choices):
@@ -81,7 +85,7 @@ rules.add_perm('powerdns.add_deleterequest', rules.is_authenticated)
 class ChangeCreateRequest(Request):
     """Abstract change/create request"""
 
-    ignore_fields = {'created', 'modified'}
+    ignore_fields = {'created', 'modified', 'internal_data'}
     prefix = 'target_'
 
     class Meta:
@@ -98,6 +102,7 @@ class ChangeCreateRequest(Request):
                 getattr(self, field_name)
             )
         object_.save()
+        request_copied.send(sender=type(self), request=self, target=object_)
         self.state = RequestStates.ACCEPTED
         self.save()
         return object_
