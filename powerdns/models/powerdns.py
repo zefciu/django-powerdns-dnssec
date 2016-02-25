@@ -586,6 +586,12 @@ class DomainMetadata(TimeTrackable):
     domain = models.ForeignKey(Domain, verbose_name=_("domain"))
     kind = models.CharField(_("kind"), max_length=15)
     content = models.TextField(_("content"), blank=True, null=True)
+    template = models.ForeignKey(
+        'powerdns.DomainMetadataTemplate',
+        verbose_name=_('Template'),
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         db_table = u'domainmetadata'

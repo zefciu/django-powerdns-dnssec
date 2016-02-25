@@ -7,7 +7,7 @@ from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from dj.choices.fields import ChoiceField
 
-from powerdns.models.powerdns import Domain, Record
+from powerdns.models.powerdns import Domain, Record, DomainMetadata
 from powerdns.utils import AutoPtrOptions
 
 
@@ -65,6 +65,36 @@ class DomainTemplate(models.Model):
 
     def extra_buttons(self):
         yield (self.add_domain_url(), 'Create domain')
+
+
+class DomainMetadataTemplate(models.Model):
+    domain_template = models.ForeignKey(
+        DomainTemplate, verbose_name=_('Domain template')
+    )
+    kind = models.CharField(_("kind"), max_length=15)
+    content = models.TextField(_("content"), blank=True, null=True)
+
+    def get_kwargs(self, domain):
+        kwargs = {}
+        # template_kwargs = {
+        #     'domain-name': domain.name,
+        # }
+        for argname in ['kind', 'content']:
+            kwargs[argname] = getattr(self, argname)
+        kwargs['template'] = self
+        kwargs['domain'] = domain
+        return kwargs
+
+    def create_record(self, domain):
+        """Creates, saves and returns a record for this domain"""
+        kwargs = self.get_kwargs(domain)
+        record = DomainMetadata.objects.create(**kwargs)
+        return record
+
+    def update_record(self, record):
+        kwargs = self.get_kwargs(record.domain)
+        for kwarg, value in kwargs.items():
+            setattr(record, kwarg, value)
 
 
 class RecordTemplateManager(models.Manager):
@@ -157,20 +187,27 @@ def update_templated_records(sender, instance, **kwargs):
     """Deletes and creates records appropriately to the template"""
     if instance.template is None:
         return
-    instance.record_set.exclude(
-        template__isnull=True
-    ).exclude(
-        template__domain_template=instance.template
-    ).delete()
-    existing_template_ids = set(
-        instance.record_set.exclude(
+    for (object_set, template_set) in [
+        (instance.record_set, instance.template.recordtemplate_set),
+        (
+            instance.domainmetadata_set,
+            instance.template.domainmetadatatemplate_set
+        ),
+    ]:
+        object_set.exclude(
             template__isnull=True
-        ).values_list('template__id', flat=True)
-    )
-    for template in instance.template.recordtemplate_set.exclude(
-        pk__in=existing_template_ids,
-    ):
-        template.create_record(instance)
+        ).exclude(
+            template__domain_template=instance.template
+        ).delete()
+        existing_template_ids = set(
+            object_set.exclude(
+                template__isnull=True
+            ).values_list('template__id', flat=True)
+        )
+        for template in template_set.exclude(
+            pk__in=existing_template_ids,
+        ):
+            template.create_record(instance)
 
 
 @receiver(
@@ -178,11 +215,20 @@ def update_templated_records(sender, instance, **kwargs):
     sender=RecordTemplate,
     dispatch_uid='record_template_modify_templated_records',
 )
+@receiver(
+    post_save,
+    sender=DomainMetadataTemplate,
+    dispatch_uid='record_template_modify_templated_records',
+)
 def modify_templated_records(sender, instance, created, **kwargs):
     if created:
         for domain in instance.domain_template.domain_set.all():
             instance.create_record(domain)
     else:
-        for record in instance.record_set.all():
+        if sender == RecordTemplate:
+            set_ = instance.record_set
+        elif sender == DomainMetadataTemplate:
+            set_ = instance.domainmetadata_set
+        for record in set_.all():
             instance.update_record(record)
             record.save()

@@ -29,6 +29,7 @@ from threadlocals.threadlocals import get_current_user
 from powerdns.models.templates import (
     DomainTemplate,
     RecordTemplate,
+    DomainMetadataTemplate,
 )
 from powerdns.models.requests import (
     DeleteRequest,
@@ -266,8 +267,13 @@ class RecordTemplateInline(admin.StackedInline):
     extra = 1
 
 
+class DomainMetadataTemplateInline(admin.StackedInline):
+    model = DomainMetadataTemplate
+    extra = 1
+
+
 class DomainTemplateAdmin(ForeignKeyAutocompleteAdmin):
-    inlines = [RecordTemplateInline]
+    inlines = [RecordTemplateInline, DomainMetadataTemplateInline]
     list_display = ['name', 'add_domain_link']
 
 RECORD_LIST_FIELDS = (
